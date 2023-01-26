@@ -15,6 +15,7 @@ def color_coding(row):
         return (
             ["background-color:red"] * len(row)
             if int(row.new_date.split(", ")[1].split("(")[1]) < 2012
+            or int(row.new_total) < 1
             else ["background-color:black"] * len(row)
         )
     except:

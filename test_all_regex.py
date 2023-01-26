@@ -39,10 +39,6 @@ def test_regex(text: str, verbose=False):
         ]
     )
 
-    total_matches = [
-        (match, i) for i, match in enumerate(re.finditer(regex_prefix, text))
-    ] + [(match, i) for i, match in enumerate(re.finditer(regex_suffix, text))]
-
     possible_dates = []
     for match, i in date_matches:
         try:
@@ -55,15 +51,17 @@ def test_regex(text: str, verbose=False):
                 has_time,
             ) = parse_datetime(match)
 
-            try:
-                sep_day = match.group("sep_day").strip()
-            except:
-                sep_day = match.group("sep_day_inner")
+            if "sep_day" in match.groupdict():
+                if match.group("sep_day") is not None:
+                    sep_day = match.group("sep_day").strip()
+                else:
+                    sep_day = match.group("sep_day_inner")
 
-            try:
-                sep_month = match.group("sep_month").strip()
-            except:
-                sep_month = match.group("sep_month_inner")
+            if "sep_month" in match.groupdict():
+                if match.group("sep_month") is not None:
+                    sep_month = match.group("sep_month").strip()
+                else:
+                    sep_month = match.group("sep_month_inner")
 
             sep_hour = (
                 match.group("sep_hour").strip() if match.group("sep_hour") else None
@@ -72,21 +70,23 @@ def test_regex(text: str, verbose=False):
                 match.group("sep_minute").strip() if match.group("sep_minute") else None
             )
 
-            try:
+            if "sep_date_inner" in match.groupdict() and match.group("sep_date_inner"):
                 sep_date = match.group("sep_date_inner").strip()
-            except:
-                try:
-                    sep_date = match.group("sep_date_outer").strip()
-                except:
-                    sep_date = None
+            elif "sep_date_outer" in match.groupdict() and match.group(
+                "sep_date_outer"
+            ):
+                sep_date = match.group("sep_date_outer").strip()
+            else:
+                sep_date = None
 
-            try:
+            if "sep_time_inner" in match.groupdict() and match.group("sep_time_inner"):
                 sep_time = match.group("sep_time_inner").strip()
-            except:
-                try:
-                    sep_time = match.group("sep_time_outer").strip()
-                except:
-                    sep_time = None
+            elif "sep_time_outer" in match.groupdict() and match.group(
+                "sep_time_outer"
+            ):
+                sep_time = match.group("sep_time_outer").strip()
+            else:
+                sep_time = None
 
             possible_dates.append(
                 (
@@ -119,16 +119,26 @@ def test_regex(text: str, verbose=False):
     possible_total = []
     get_decimal_part = lambda match: int(match) * (10 if len(match) == 1 else 1) / 100
 
+    total_matches = [
+        (match, i) for i, match in enumerate(re.finditer(regex_prefix, text))
+    ] + [(match, i) for i, match in enumerate(re.finditer(regex_suffix, text))]
+
     for match, i in total_matches:
         total_amount = round(
             int(match.group("integer_part"))
-            + get_decimal_part(match.group("decimal_part")),
+            + (
+                get_decimal_part(match.group("decimal_part"))
+                if match.group("decimal_part")
+                else 0
+            ),
             2,
         )
-        sep_decimal = match.group("sep_decimal").strip()
+        sep_decimal = (
+            match.group("sep_decimal").strip() if match.group("sep_decimal") else None
+        )
 
         has_adjacent = match.group("adjacent") is not None
-        has_currency = (match.group("currency_prefix") is not None) ^ (
+        has_currency = (match.group("currency_prefix") is not None) or (
             match.group("currency_suffix") is not None
         )
 
@@ -148,8 +158,10 @@ def test_regex(text: str, verbose=False):
             )
         )
 
-    date_scores = sorted(possible_dates, key=lambda x: x[0], reverse=True)
-    total_scores = sorted(possible_total, key=lambda x: x[0], reverse=True)
+    date_scores = sorted(possible_dates, key=lambda x: x[0], reverse=True) + [(0, None)]
+    total_scores = sorted(possible_total, key=lambda x: x[0], reverse=True) + [
+        (0, None)
+    ]
 
     if verbose:
         print("Date matches:")
